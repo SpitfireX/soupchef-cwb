@@ -179,16 +179,20 @@ def init_worker():
     logger.debug('Tagger loaded')
 
 
+def main():
+    paths = []
 
-paths = []
+    for path, dirs, files in os.walk(base):
+        for file in files:
+            if file != 'index.dat':
+                paths.append((path, file))
 
-for path, dirs, files in os.walk(base):
-    for file in files:
-        if file != 'index.dat':
-            paths.append((path, file))
+    workers = {}
 
-workers = {}
+    with concurrent.futures.ProcessPoolExecutor(max_workers = 1, initializer = init_worker) as executor:
+        for path, file in paths:
+            workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
 
-with concurrent.futures.ProcessPoolExecutor(max_workers = 1, initializer = init_worker) as executor:
-    for path, file in paths:
-        workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
+
+if __name__ == "__main__":
+    main()
