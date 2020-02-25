@@ -1,0 +1,3 @@
+cwb-encode -d cwb/data/chefkoch/ -R cwb/registry/chefkoch -f chefkoch.vrt -c utf8 -xsB -S corpus:0 -S s:0+id -S recipe:0+title+id+url+author+date+yearmonth+year+rating+category+keywords+related+ingredients -S comment:0+id+parent+author+date+yearmonth+year+datetime_orig
+
+cwb-make -r cwb/registry/ -M 500 -V CHEFKOCH
