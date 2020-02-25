@@ -80,16 +80,12 @@ for path, file in paths:
     with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as f:
         recipe = json.load(f, strict=False)
 
-    xml_root = etree.Element('entry')
-    xml_root.tail = '\n'
-    xml_root.text = '\n'
-
     if recipe['date']:
         d = datetime.datetime.strptime(recipe['date'], '%Y-%m-%d')
     else:
         d = None
 
-    xml_recipe = etree.SubElement(xml_root, 'recipe',
+    xml_recipe = etree.Element('recipe',
         title = recipe['title'],
         id = recipe['id'],
         url = recipe['url'],
@@ -110,6 +106,10 @@ for path, file in paths:
 
     add_sentences(xml_recipe, sentences)
 
+    xml_comments = etree.Element('comments')
+    xml_comments.tail = '\n'
+    xml_comments.text = '\n'
+
     for comment in recipe['comments']:
 
         if comment['date']:
@@ -117,7 +117,7 @@ for path, file in paths:
         else:
             d = None
 
-        xml_comment = etree.SubElement(xml_root, 'comment',
+        xml_comment = etree.SubElement(xml_comments, 'comment',
             id = f'c{comment_i}',
             parent = recipe['id'],
             author = comment['author'],
@@ -135,10 +135,16 @@ for path, file in paths:
 
         comment_i += 1
     
-    newfile = file.split('.')[0] + '.vrt'
-    newpath = path.replace(base, output)
+    recipe_file = file.split('.')[0] + '.vrt'
+    recipe_path = path.replace(base, output + '/recipes')
+    os.makedirs(recipe_path, exist_ok=True)
 
-    os.makedirs(newpath, exist_ok=True)
+    comments_file =     newfile = file.split('.')[0] + '_comments.vrt'
+    comments_path = path.replace(base, output + '/comments')
+    os.makedirs(comments_path, exist_ok=True)
 
-    xml = etree.ElementTree(xml_root)
-    xml.write(os.path.join(newpath, newfile), encoding='unicode', compression=False)
+    xml = etree.ElementTree(xml_recipe)
+    xml.write(os.path.join(recipe_path, recipe_file), encoding='UTF-8', compression=False)
+
+    xml = etree.ElementTree(xml_comments)
+    xml.write(os.path.join(comments_path, comments_file), encoding='UTF-8', compression=False)
