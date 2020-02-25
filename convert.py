@@ -3,6 +3,8 @@ import json
 import re
 import datetime
 import argparse
+import concurrent.futures
+import logging
 
 from lxml import etree
 
@@ -14,12 +16,14 @@ output = '/home/timm/projekte/wui_chefkoch_cwb/output/xml'
 
 splitter = re.compile(r'[\n\r]+')
 
-tokenizer = SoMaJo('de_CMC')
+# tokenizer = SoMaJo('de_CMC')
+tokenizer = None
 
 model = "someweta/german_web_social_media_2018-12-21.model"
-tagger = ASPTagger()
-tagger.load(model)
-print('Tagger model loaded, beginning conversion')
+# tagger = ASPTagger()
+# tagger.load(model)
+# print('Tagger model loaded, beginning conversion')
+tagger = None
 
 comment_i = 0
 sentence_i = 0
@@ -68,14 +72,9 @@ def year(d):
     else:
         return '0000'
 
-paths = []
+def process_file(path, file):
 
-for path, dirs, files in os.walk(base):
-    for file in files:
-        if file != 'index.dat':
-            paths.append((path, file))
-
-for path, file in paths:
+    logger.debug(f'Processing file {os.path.join(path, file)}')
 
     with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as f:
         recipe = json.load(f, strict=False)
@@ -102,6 +101,7 @@ for path, file in paths:
     xml_recipe.tail = '\n'
     xml_recipe.text = '\n'
 
+    logger.debug('\tTokenizing/tagging recipe')
     sentences = list(tokenize_tag(recipe['text']))
 
     add_sentences(xml_recipe, sentences)
@@ -110,6 +110,7 @@ for path, file in paths:
     xml_comments.tail = '\n'
     xml_comments.text = '\n'
 
+    logger.debug('\tProcessing comments')
     for comment in recipe['comments']:
 
         if comment['date']:
@@ -139,12 +140,55 @@ for path, file in paths:
     recipe_path = path.replace(base, output + '/recipes')
     os.makedirs(recipe_path, exist_ok=True)
 
+    logger.debug(f'\tWriting recipe to {os.path.join(recipe_path, recipe_file)}')
+    xml = etree.ElementTree(xml_recipe)
+    xml.write(os.path.join(recipe_path, recipe_file), encoding='UTF-8', compression=False)
+
+    if len(recipe['comment']) == 0:
+        logger.debug('\tSkipping empty comments')
+        return
+
     comments_file =     newfile = file.split('.')[0] + '_comments.vrt'
     comments_path = path.replace(base, output + '/comments')
     os.makedirs(comments_path, exist_ok=True)
 
-    xml = etree.ElementTree(xml_recipe)
-    xml.write(os.path.join(recipe_path, recipe_file), encoding='UTF-8', compression=False)
-
+    logger.debug(f'\tWriting comments to {os.path.join(comments_path, comments_file)}')
     xml = etree.ElementTree(xml_comments)
     xml.write(os.path.join(comments_path, comments_file), encoding='UTF-8', compression=False)
+
+
+def init_worker():
+    global logger
+    logger = logging.getLogger(str(os.getpid()))
+    logger.setLevel(logging.DEBUG)
+    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s -%(message)s')
+    hdl = logging.FileHandler(logger.name+'.log')
+    hdl.setFormatter(fmt)
+    hdl.setLevel(logging.DEBUG)
+    logger.addHandler(hdl)
+
+    logger.debug('Subprocess initializing')
+
+    global tokenizer
+    tokenizer = SoMaJo('de_CMC')
+    logger.debug('Tokenizer loaded')
+
+    global tagger
+    tagger = ASPTagger()
+    tagger.load(model)
+    logger.debug('Tagger loaded')
+
+
+
+paths = []
+
+for path, dirs, files in os.walk(base):
+    for file in files:
+        if file != 'index.dat':
+            paths.append((path, file))
+
+workers = {}
+
+with concurrent.futures.ProcessPoolExecutor(max_workers = 1, initializer = init_worker) as executor:
+    for path, file in paths:
+        workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
