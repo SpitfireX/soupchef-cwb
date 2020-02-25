@@ -11,8 +11,8 @@ from lxml import etree
 from somajo import SoMaJo
 from someweta import ASPTagger
 
-base = '/home/timm/projekte/chefkoch_dump/dump'
-output = '/home/timm/projekte/wui_chefkoch_cwb/output/xml'
+base = None
+output = None
 
 splitter = re.compile(r'[\n\r]+')
 
@@ -73,7 +73,7 @@ def year(d):
         return '0000'
 
 def process_file(path, file):
-
+    global comment_i
     logger.debug(f'Processing file {os.path.join(path, file)}')
 
     with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as f:
@@ -137,19 +137,19 @@ def process_file(path, file):
         comment_i += 1
     
     recipe_file = file.split('.')[0] + '.vrt'
-    recipe_path = path.replace(base, output + '/recipes')
+    recipe_path = path.replace(base, output + '/recipes/')
     os.makedirs(recipe_path, exist_ok=True)
 
     logger.debug(f'\tWriting recipe to {os.path.join(recipe_path, recipe_file)}')
     xml = etree.ElementTree(xml_recipe)
     xml.write(os.path.join(recipe_path, recipe_file), encoding='UTF-8', compression=False)
 
-    if len(recipe['comment']) == 0:
+    if len(recipe['comments']) == 0:
         logger.debug('\tSkipping empty comments')
         return
 
-    comments_file =     newfile = file.split('.')[0] + '_comments.vrt'
-    comments_path = path.replace(base, output + '/comments')
+    comments_file = file.split('.')[0] + '_comments.vrt'
+    comments_path = path.replace(base, output + '/comments/')
     os.makedirs(comments_path, exist_ok=True)
 
     logger.debug(f'\tWriting comments to {os.path.join(comments_path, comments_file)}')
@@ -180,6 +180,21 @@ def init_worker():
 
 
 def main():
+    
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-o', default='output/vrt/', dest='outfolder',
+        help='Sets the output folder.')
+    argparser.add_argument('-i', dest='infolder', required=True,
+        help='Sets the input folder.')
+    
+    args = argparser.parse_args()
+
+    global base
+    base = os.path.expanduser(args.infolder)
+
+    global output
+    output = os.path.expanduser(args.outfolder)
+
     paths = []
 
     for path, dirs, files in os.walk(base):
