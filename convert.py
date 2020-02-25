@@ -10,6 +10,7 @@ from somajo import SoMaJo
 from someweta import ASPTagger
 
 base = '/home/timm/projekte/chefkoch_dump/dump'
+output = '/home/timm/projekte/wui_chefkoch_cwb/output/xml'
 
 splitter = re.compile(r'[\n\r]+')
 
@@ -18,6 +19,7 @@ tokenizer = SoMaJo('de_CMC')
 model = "someweta/german_web_social_media_2018-12-21.model"
 tagger = ASPTagger()
 tagger.load(model)
+print('Tagger model loaded, beginning conversion')
 
 comment_i = 0
 sentence_i = 0
@@ -66,22 +68,21 @@ def year(d):
     else:
         return '0000'
 
-
-xml_root = etree.Element('corpus')
-xml_root.tail = '\n'
-xml_root.text = '\n'
-
 paths = []
 
 for path, dirs, files in os.walk(base):
     for file in files:
         if file != 'index.dat':
-            paths.append(path + '/' + file)
+            paths.append((path, file))
 
-for path in paths:
+for path, file in paths:
 
-    with open(path, mode='r', encoding='utf-8-sig') as f:
+    with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as f:
         recipe = json.load(f, strict=False)
+
+    xml_root = etree.Element('entry')
+    xml_root.tail = '\n'
+    xml_root.text = '\n'
 
     if recipe['date']:
         d = datetime.datetime.strptime(recipe['date'], '%Y-%m-%d')
@@ -134,6 +135,10 @@ for path in paths:
 
         comment_i += 1
     
+    newfile = file.split('.')[0] + '.vrt'
+    newpath = path.replace(base, output)
 
-xml = etree.ElementTree(xml_root)
-xml.write('output/chefkoch.vrt', encoding='unicode', compression=False)
+    os.makedirs(newpath, exist_ok=True)
+
+    xml = etree.ElementTree(xml_root)
+    xml.write(os.path.join(newpath, newfile), encoding='unicode', compression=False)
