@@ -23,7 +23,7 @@ def merge_all(infolder, outpath, filter, trim, compression):
                 lines = infile.readlines()
             
             if trim:
-                outfile.writelines(lines[1:-2])
+                outfile.writelines(lines[1:-1])
             else:
                 outfile.writelines(lines)
 
