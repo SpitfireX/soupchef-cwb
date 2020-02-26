@@ -37,6 +37,7 @@ def to_flist(lst):
 
 def tokenize_tag(text):
     paragraphs = splitter.split(text)
+    paragraphs = [p for p in paragraphs if p]
 
     sentences = tokenizer.tokenize_text(paragraphs)
 
