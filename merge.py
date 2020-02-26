@@ -1,7 +1,8 @@
 import os
 import argparse
+import gzip
 
-def merge_all(infolder, outpath, filter, trim):
+def merge_all(infolder, outpath, filter, trim, compression):
     
     infiles = []
 
@@ -10,7 +11,12 @@ def merge_all(infolder, outpath, filter, trim):
             if str(file).endswith(filter):
                 infiles.append((path, file))
 
-    with open(outpath, mode='w', encoding='utf-8') as outfile:
+    if compression:
+        outfile = gzip.open(outpath, mode='wt', encoding='utf-8')
+    else:
+        outfile = open(outpath, mode='w', encoding='utf-8')
+
+    with outfile:
         for path, file in infiles:
 
             with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as infile:
@@ -33,6 +39,8 @@ def main():
         help='Sets the file extension filter.')
     argparser.add_argument('--trim', action='store_true', default=False, dest='trim',
         help="Trims the first and last line of the input files (i.e. the enclosing root element in vrt/xml files).")
+    argparser.add_argument('--gz', action='store_true', default=False, dest='compression',
+        help="Gzip kompression of the output file.")
     
     args = argparser.parse_args()
 
@@ -40,8 +48,9 @@ def main():
     outpath = os.path.expanduser(args.outpath)
     extension = args.extension
     trim = args.trim
+    compression = args.compression
 
-    merge_all(infolder, outpath, extension, trim)
+    merge_all(infolder, outpath, extension, trim, compression)
 
 
 if __name__ == "__main__":
