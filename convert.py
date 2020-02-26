@@ -6,6 +6,8 @@ import argparse
 import concurrent.futures
 import logging
 
+from multiprocessing import Value
+
 from lxml import etree
 
 from somajo import SoMaJo
@@ -25,9 +27,6 @@ model = "someweta/german_web_social_media_2018-12-21.model"
 # print('Tagger model loaded, beginning conversion')
 tagger = None
 
-comment_i = 0
-sentence_i = 0
-
 def wrapjoin(lst, char='\n'):
     s = char.join([str(x) for x in lst])
     return char + s + char
@@ -46,13 +45,17 @@ def tokenize_tag(text):
 
 def add_sentences(element, sentences):
     global sentence_i
+
     for sentence in sentences:
         lines = [f'{word}\t{pos}' for word, pos in sentence]
         inner_text = wrapjoin(lines)
-        sentence_element = etree.SubElement(element, 's', id=f's{sentence_i}')
+
+        with sentence_i.get_lock():
+            sentence_element = etree.SubElement(element, 's', id=f's{sentence_i.value}')
+            sentence_i.value += 1
+        
         sentence_element.text = inner_text
         sentence_element.tail = '\n'
-        sentence_i += 1
 
 def date(d):
     if d:
@@ -74,6 +77,7 @@ def year(d):
 
 def process_file(path, file):
     global comment_i
+
     logger.debug(f'Processing file {os.path.join(path, file)}')
 
     with open(os.path.join(path, file), mode='r', encoding='utf-8-sig') as f:
@@ -118,15 +122,17 @@ def process_file(path, file):
         else:
             d = None
 
-        xml_comment = etree.SubElement(xml_comments, 'comment',
-            id = f'c{comment_i}',
-            parent = recipe['id'],
-            author = comment['author'],
-            date = date(d),
-            yearmonth = yearmonth(d),
-            year = year(d),
-            datetime_orig = comment['date']
-        )
+        with comment_i.get_lock():
+            xml_comment = etree.SubElement(xml_comments, 'comment',
+                id = f'c{comment_i.value}',
+                parent = recipe['id'],
+                author = comment['author'],
+                date = date(d),
+                yearmonth = yearmonth(d),
+                year = year(d),
+                datetime_orig = comment['date']
+            )
+            comment_i.value += 1
         xml_comment.tail = '\n'
         xml_comment.text = '\n'
 
@@ -134,7 +140,6 @@ def process_file(path, file):
 
         add_sentences(xml_comment, sentences)
 
-        comment_i += 1
     
     recipe_file = file.split('.')[0] + '.vrt'
     recipe_path = path.replace(base, output + '/recipes/')
@@ -157,11 +162,17 @@ def process_file(path, file):
     xml.write(os.path.join(comments_path, comments_file), encoding='UTF-8', compression=False)
 
 
-def init_worker():
+def init_worker(comment_counter, sentence_counter):
+    global comment_i
+    comment_i = comment_counter
+
+    global sentence_i
+    sentence_i = sentence_counter
+    
     global logger
     logger = logging.getLogger(str(os.getpid()))
     logger.setLevel(logging.DEBUG)
-    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s -%(message)s')
+    fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     hdl = logging.FileHandler(logger.name+'.log')
     hdl.setFormatter(fmt)
     hdl.setLevel(logging.DEBUG)
@@ -203,8 +214,10 @@ def main():
                 paths.append((path, file))
 
     workers = {}
+    comment_i = Value('i')
+    sentence_i = Value('i')
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers = 1, initializer = init_worker) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers = None, initializer = init_worker, initargs = (comment_i, sentence_i)) as executor:
         for path, file in paths:
             workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
 
