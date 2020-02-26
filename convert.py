@@ -206,6 +206,8 @@ def main():
         help='Sets the output folder.')
     argparser.add_argument('-i', dest='infolder', required=True,
         help='Sets the input folder.')
+    argparser.add_argument('-t', type=int, default=1, dest='threads',
+        help='Sets the number of parallell processes to use. Warning, very memory intensive!')
     
     args = argparser.parse_args()
 
@@ -227,7 +229,8 @@ def main():
     sentence_i = Value('i')
     worker_counter = Value('i')
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers = None, initializer = init_worker, initargs = (comment_i, sentence_i, worker_counter)) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker,
+        initargs = (comment_i, sentence_i, worker_counter)) as executor:
         for path, file in paths:
             workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
 
