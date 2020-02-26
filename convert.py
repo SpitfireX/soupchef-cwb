@@ -5,6 +5,7 @@ import datetime
 import argparse
 import concurrent.futures
 import logging
+import time
 
 from multiprocessing import Value
 
@@ -162,7 +163,8 @@ def process_file(path, file):
     xml.write(os.path.join(comments_path, comments_file), encoding='UTF-8', compression=False)
 
 
-def init_worker(comment_counter, sentence_counter):
+def init_worker(comment_counter, sentence_counter, worker_counter):
+
     global comment_i
     comment_i = comment_counter
 
@@ -179,6 +181,13 @@ def init_worker(comment_counter, sentence_counter):
     logger.addHandler(hdl)
 
     logger.debug('Subprocess initializing')
+
+    with worker_counter.get_lock():
+        n = worker_counter.value
+        worker_counter.value += 1
+    
+    logger.debug(f'Subprocess #{n} sleeping {n*25}s before continuing init')
+    time.sleep(n*20)
 
     global tokenizer
     tokenizer = SoMaJo('de_CMC')
@@ -216,8 +225,9 @@ def main():
     workers = {}
     comment_i = Value('i')
     sentence_i = Value('i')
+    worker_counter = Value('i')
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers = None, initializer = init_worker, initargs = (comment_i, sentence_i)) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers = None, initializer = init_worker, initargs = (comment_i, sentence_i, worker_counter)) as executor:
         for path, file in paths:
             workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
 
