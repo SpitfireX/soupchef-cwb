@@ -114,7 +114,7 @@ def process_file(path, file):
 
     xml_comments = etree.Element('comments',
         parent = recipe['id'],
-        count = recipe['comment_count'])
+        count = str(recipe['comment_count']))
     xml_comments.tail = '\n'
     xml_comments.text = '\n'
 
@@ -232,10 +232,12 @@ def main():
     sentence_i = Value('i')
     worker_counter = Value('i')
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker,
-        initargs = (comment_i, sentence_i, worker_counter)) as executor:
-        for path, file in paths:
-            workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
+    # with concurrent.futures.ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker,
+    #     initargs = (comment_i, sentence_i, worker_counter)) as executor:
+    init_worker(comment_i, sentence_i, worker_counter)
+    for path, file in paths:
+        workers[os.path.join(path, file)] = process_file(path, file)
+        break
 
 
 if __name__ == "__main__":
