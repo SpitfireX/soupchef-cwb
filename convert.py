@@ -232,12 +232,10 @@ def main():
     sentence_i = Value('i')
     worker_counter = Value('i')
 
-    # with concurrent.futures.ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker,
-    #     initargs = (comment_i, sentence_i, worker_counter)) as executor:
-    init_worker(comment_i, sentence_i, worker_counter)
-    for path, file in paths:
-        workers[os.path.join(path, file)] = process_file(path, file)
-        break
+    with concurrent.futures.ProcessPoolExecutor(max_workers = args.threads, initializer = init_worker,
+        initargs = (comment_i, sentence_i, worker_counter)) as executor:
+        for path, file in paths:
+            workers[os.path.join(path, file)] = executor.submit(process_file, path, file)
 
 
 if __name__ == "__main__":
