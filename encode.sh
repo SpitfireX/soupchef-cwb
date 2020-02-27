@@ -9,6 +9,6 @@ echo making CHEFKOCH recipe corpus
 cwb-make -r cwb/registry/ -M 2000 -V CHEFKOCH
 
 echo encoding CHEFKOCH_COMMENTS corpus
-cwb-encode -d cwb/data/chefkoch_comments/ -R cwb/registry/chefkoch_comments -f output/comments.vrt.gz -c utf8 -xsB -S s:0+id -S comment:0+id+parent+author+date+yearmonth+year+datetime_orig -P pos
+cwb-encode -d cwb/data/chefkoch_comments/ -R cwb/registry/chefkoch_comments -f output/comments.vrt.gz -c utf8 -xsB -S s:0+id -S comment:0+id+parent+author+date+yearmonth+year+datetime_orig -S comments:0+parent+count -P pos
 echo making CHEFKOCH_COMMENTS corpus
 cwb-make -r cwb/registry/ -M 2000 -V CHEFKOCH_COMMENTS

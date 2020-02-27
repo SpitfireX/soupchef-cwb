@@ -112,7 +112,9 @@ def process_file(path, file):
 
     add_sentences(xml_recipe, sentences)
 
-    xml_comments = etree.Element('comments')
+    xml_comments = etree.Element('comments',
+        parent = recipe['id'],
+        count = recipe['comment_count'])
     xml_comments.tail = '\n'
     xml_comments.text = '\n'
 
