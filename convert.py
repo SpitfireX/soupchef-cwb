@@ -13,20 +13,22 @@ from lxml import etree
 
 from somajo import SoMaJo
 from someweta import ASPTagger
+from germalemma import GermaLemma
+from treetaggerwrapper import TreeTagger
 
 base = None
 output = None
 
 splitter = re.compile(r'[\n\r]+')
 
-# tokenizer = SoMaJo('de_CMC')
 tokenizer = None
 
 model = "someweta/german_web_social_media_2018-12-21.model"
-# tagger = ASPTagger()
-# tagger.load(model)
-# print('Tagger model loaded, beginning conversion')
 tagger = None
+
+lemmatizer = None
+
+treetagger = None
 
 def wrapjoin(lst, char='\n'):
     s = char.join([str(x) for x in lst])
@@ -35,7 +37,14 @@ def wrapjoin(lst, char='\n'):
 def to_flist(lst):
     return wrapjoin(lst, '|')
 
-def tokenize_tag(text):
+def process_text(text):
+    '''
+    Splits text into paraghraphs and sentences, tokenizes, tags and lemmatizes the text.
+
+    Two different tagger/lemmatizer pipelines are being used to improve the overall output.
+    SoMeWeTa + GermaLemma are being used as the primary source of tagging/lemmatization.
+    TreeTagger is used to fill in gaps in GermaLemma output and to mitigate some of GermaLemmas shortcomings.
+    '''
     paragraphs = splitter.split(text)
     paragraphs = [p for p in paragraphs if p]
 
@@ -43,13 +52,40 @@ def tokenize_tag(text):
 
     for sentence in sentences:
         sentence = [t.text for t in sentence]
-        yield tagger.tag_sentence(sentence)
+
+        # TreeTagger tagging
+        result_tt = treetagger.tag_text('\n'.join(sentence), tagonly=True)
+        result_tt = [r.split('\t') for r in result_tt]
+        
+        # SoMeWeTa tagging
+        result_someweta = tagger.tag_sentence(sentence)
+        for i, r in enumerate(result_someweta):
+            token, tag = r
+            try:
+                lemma = lemmatizer.find_lemma(token, tag)
+            except ValueError:
+                lemma = ''
+            result_someweta[i] = (token, tag, lemma)
+
+        output = []
+        for i in range(len(result_tt)):
+            token, tag, lemma = result_someweta[i]
+            token_tt, tag_tt, lemma_tt = result_tt[i]
+
+            # hard coded list of pos-tags GermaLemma consinstently fails with.
+            # using TreeTagger lemma in that case.
+            if not lemma or tag in ('ADJD', 'VVFIN', 'VVINF'):
+                lemma = lemma_tt
+
+            output.append((token, tag, lemma))
+
+        yield output
 
 def add_sentences(element, sentences):
     global sentence_i
 
     for sentence in sentences:
-        lines = [f'{word}\t{pos}' for word, pos in sentence]
+        lines = ['\t'.join(t) for t in sentence]
         inner_text = wrapjoin(lines)
 
         with sentence_i.get_lock():
@@ -108,7 +144,7 @@ def process_file(path, file):
     xml_recipe.text = '\n'
 
     logger.debug('\tTokenizing/tagging recipe')
-    sentences = list(tokenize_tag(recipe['text']))
+    sentences = process_text(recipe['text'])
 
     add_sentences(xml_recipe, sentences)
 
@@ -138,7 +174,7 @@ def process_file(path, file):
         xml_comment.tail = '\n'
         xml_comment.text = '\n'
 
-        sentences = tokenize_tag(comment['text'])
+        sentences = process_text(comment['text'])
 
         add_sentences(xml_comment, sentences)
 
@@ -198,6 +234,13 @@ def init_worker(comment_counter, sentence_counter, worker_counter):
     tagger = ASPTagger()
     tagger.load(model)
     logger.debug('Tagger loaded')
+
+    global lemmatizer
+    lemmatizer = GermaLemma(use_pattern_module=True)
+    logger.debug('Lemmatizer loaded')
+
+    global treetagger
+    treetagger = TreeTagger(TAGLANG='de', TAGDIR='treetagger')
 
 
 def main():
