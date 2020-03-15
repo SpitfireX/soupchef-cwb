@@ -4,7 +4,7 @@ echo Creating directory structure
 mkdir -p cwb/data/chefkoch cwb/data/chefkoch_comments cwb/registry/
 
 echo encoding CHEFKOCH recipe corpus
-cwb-encode -d cwb/data/chefkoch/ -R cwb/registry/chefkoch -f output/recipes.vrt.gz -c utf8 -xsB -S s:0+id -S text:0+title+id+url+author+date+yearmonth+year+rating+category+keywords+related+ingredients -P pos
+cwb-encode -d cwb/data/chefkoch/ -R cwb/registry/chefkoch -f output/recipes.vrt.gz -c utf8 -xsB -S s:0+id -S text:0+title+id+url+author+date+yearmonth+year+rating+rating_int+category+category_orig+keywords+related+ingredients -P pos
 echo making CHEFKOCH recipe corpus
 cwb-make -r cwb/registry/ -M 2000 -V CHEFKOCH
 

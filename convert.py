@@ -20,6 +20,8 @@ base = None
 output = None
 
 splitter = re.compile(r'[\n\r]+')
+disallowed = re.compile(r'[^a-zA-Z0-9_]')
+whitespace = re.compile(r'\s+')
 
 tokenizer = None
 
@@ -36,6 +38,25 @@ def wrapjoin(lst, char='\n'):
 
 def to_flist(lst):
     return wrapjoin(lst, '|')
+
+def clean(string):
+
+    string = string.replace('ä', 'ae')
+    string = string.replace('Ä', 'Ae')
+    string = string.replace('ö', 'oe')
+    string = string.replace('Ö', 'Oe')
+    string = string.replace('ü', 'ue')
+    string = string.replace('Ü', 'Ue')
+    string = string.replace('ß', 'ss')
+
+    string = string.replace('&', 'und')
+    string = string.replace('/', '_')
+    string = string.replace('-', '_')
+
+    string = whitespace.sub('_', string)
+    string = disallowed.sub('', string)
+
+    return string
 
 def process_text(text):
     '''
@@ -99,13 +120,13 @@ def date(d):
     if d:
         return d.strftime('%Y-%m-%d')
     else:
-        return '0000-00-00'
+        return '0000_00_00'
 
 def yearmonth(d):
     if d:
         return d.strftime('%Y-%m')
     else:
-        return '0000-00'
+        return '0000_00'
 
 def year(d):
     if d:
@@ -126,7 +147,7 @@ def process_file(path, file):
     else:
         d = None
 
-    xml_recipe = etree.Element('recipe',
+    xml_recipe = etree.Element('text',
         title = recipe['title'],
         id = recipe['id'],
         url = recipe['url'],
@@ -134,8 +155,10 @@ def process_file(path, file):
         date = date(d),
         yearmonth = yearmonth(d),
         year = year(d),
-        rating = str(recipe['rating'].get('value')),
-        category = recipe['category'],
+        rating = str(recipe['rating'].get('value', 0)),
+        rating_int = str(round(recipe['rating'].get('value', 0))),
+        category = clean(recipe['category']),
+        category_orig = recipe['category'],
         keywords = to_flist(recipe['keywords']),
         related = to_flist(recipe['related']),
         ingredients = to_flist([x['name'] for x in recipe['ingredients']])
@@ -161,7 +184,7 @@ def process_file(path, file):
             d = None
 
         with comment_i.get_lock():
-            xml_comment = etree.SubElement(xml_comments, 'comment',
+            xml_comment = etree.SubElement(xml_comments, 'text',
                 id = f'c{comment_i.value}',
                 parent = recipe['id'],
                 author = comment['author'],
