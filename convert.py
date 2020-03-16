@@ -77,7 +77,7 @@ def process_text(text):
         # TreeTagger tagging
         result_tt = treetagger.tag_text('\n'.join(sentence), tagonly=True)
         result_tt = [r.split('\t') for r in result_tt]
-        
+
         # SoMeWeTa tagging
         result_someweta = tagger.tag_sentence(sentence)
         for i, r in enumerate(result_someweta):
@@ -118,21 +118,21 @@ def add_sentences(element, sentences):
 
 def date(d):
     if d:
-        return d.strftime('%Y-%m-%d')
+        return d.strftime('%Y_%m_%d')
     else:
-        return '0000_00_00'
+        return 'null'
 
 def yearmonth(d):
     if d:
-        return d.strftime('%Y-%m')
+        return d.strftime('%Y_%m')
     else:
-        return '0000_00'
+        return 'null'
 
 def year(d):
     if d:
         return d.strftime('%Y')
     else:
-        return '0000'
+        return 'null'
 
 def process_file(path, file):
     global comment_i
